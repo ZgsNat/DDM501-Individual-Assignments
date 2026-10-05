@@ -7,9 +7,9 @@
 **System Title:** Enterprise Real-Time Credit Default Risk Scoring & Monitoring Platform  
 **Target Domain:** Financial Technology (FinTech) / Digital Retail Banking  
 **Feature Schema Reference:** UCI Default of Credit Card Clients (schema reference only; this submission does not use the UCI observations)  
-**Student Name:** Nguyễn Thái Thịnh  
-**Student ID:** 25MS13304  
-**Submission Date:** 5 October 2026  
+**Student Name:** Nguyễn Thái Thịnh<br>
+**Student ID:** 25MS13304<br>
+**Submission Date:** 5 October 2026<br>
 **Submission PDF:** `DDM501_Assignment1_25MS13304_Nguyen_Thai_Thinh.pdf`
 
 <div class="page-break"></div>
@@ -66,15 +66,15 @@ Currently, the organization relies on legacy rule-based heuristic scorecards com
 > The operational figures and practices in this scenario are illustrative assumptions for requirements analysis; they are not measurements from a named bank or dataset.
 
 1. **Static FICO and Debt-to-Income (DTI) Hard Cutoffs**:
-   - Applicants with credit scores above 720 and DTI below 30% are automatically approved.
-   - Applicants with credit scores below 620 or DTI above 45% are automatically declined.
+    - Applicants with credit scores above 720 and DTI below 30% are automatically approved.
+    - Applicants with credit scores below 620 or DTI above 45% are automatically declined.
 2. **The "Gray Zone" Bottleneck**:
-   - Approximately 42% of all applicants fall into the intermediate "gray zone" (scores 620–720 or irregular repayment records).
-   - All gray-zone applications are routed to a human underwriting queue, requiring 24 to 72 hours for document verification, income confirmation, and subjective risk appraisal.
+    - Approximately 42% of all applicants fall into the intermediate "gray zone" (scores 620–720 or irregular repayment records).
+    - All gray-zone applications are routed to a human underwriting queue, requiring 24 to 72 hours for document verification, income confirmation, and subjective risk appraisal.
 3. **Operational Deficiencies**:
-   - **High Customer Churn**: 38% of gray-zone applicants abandon their applications or accept competitor pre-approved offers during the multi-day waiting window.
-   - **Inflexibility for "Thin-File" Borrowers**: Young professionals and gig-economy workers lacking multi-year credit bureau records are systematically rejected, forfeiting high-lifetime-value prime customers.
-   - **Inconsistent Decisions**: Human underwriters exhibit significant inter-rater variability (variance exceeding 23% for identical applicant risk profiles under end-of-quarter pressure).
+    - **High Customer Churn**: 38% of gray-zone applicants abandon their applications or accept competitor pre-approved offers during the multi-day waiting window.
+    - **Inflexibility for "Thin-File" Borrowers**: Young professionals and gig-economy workers lacking multi-year credit bureau records are systematically rejected, forfeiting high-lifetime-value prime customers.
+    - **Inconsistent Decisions**: Human underwriters exhibit significant inter-rater variability (variance exceeding 23% for identical applicant risk profiles under end-of-quarter pressure).
 
 ### 1.4 Justification for Machine Learning
 
@@ -170,30 +170,13 @@ The platform must satisfy five distinct stakeholder groups with divergent operat
 
 To ensure complete alignment between organizational business value and technical infrastructure, system goals are organized into a strict three-tier hierarchy:
 
-```
-                           ┌──────────────────────────────────────────────┐
-                           │               BUSINESS GOALS                 │
-                           │  • Reduce Portfolio NPL Loss Rate to <= 2.2% │
-                           │  • Expand Automated Underwriting to >= 70%   │
-                           │  • Reduce Operational Review Costs by 75%    │
-                           │  • Ensure 100% Fair Lending Legal Compliance │
-                           └──────────────────────┬───────────────────────┘
-                                                  │ drives
-                           ┌──────────────────────▼───────────────────────┐
-                           │                SYSTEM GOALS                  │
-                           │  • p95 Serving Latency < 50ms (p99 < 100ms)  │
-                           │  • Service Uptime >= 99.9%                   │
-                           │  • API Error Rate (5xx) < 0.1%               │
-                           │  • Drift Population Stability Index < 0.10   │
-                           └──────────────────────┬───────────────────────┘
-                                                  │ requires
-                           ┌──────────────────────▼───────────────────────┐
-                           │                MODEL GOALS                   │
-                           │  • Proposed ROC-AUC target >= 0.77           │
-                           │  • Recall >= 0.55 on Default Minority Class  │
-                           │  • Brier Calibration Score < 0.12            │
-                           │  • Disparate Impact Ratio: 0.80 <= DIR <= 1.25│
-                           └──────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    Business["BUSINESS GOALS<br/>Portfolio health<br/>Automation<br/>Operating cost"]
+    System["SYSTEM GOALS<br/>Latency<br/>Availability<br/>Reliability and drift"]
+    Model["MODEL GOALS<br/>Discrimination and recall<br/>Calibration<br/>Fairness screening"]
+    Business -->|drives| System
+    System -->|requires| Model
 ```
 
 ### 3.1 Metric Alignment and Operational Threshold Matrix
@@ -223,35 +206,18 @@ The table below defines proposed targets and their intended business interpretat
 The platform is architected as four decoupled, specialized subsystems operating synchronously for online serving and asynchronously for telemetry, monitoring, and automated retraining:
 
 ```mermaid
-flowchart TD
-    subgraph ClientAndGateway ["1. Ingress & Serving Gateway"]
-        Client[Mobile App / Web Loan Portal] -->|POST /predict| API[FastAPI Serving Microservice :18020]
-        API -->|Versioned model load| RAM[(Active validated model)]
-        API -.->|Fallback if Registry Down| Fallback[(Local Joblib Fallback V1)]
-    end
-
-    subgraph StorageAndTelemetry ["2. Storage, Persistence & Telemetry"]
-        API -->|Sync INSERT features + decision| DB[(PostgreSQL 15: inference_logs)]
-        API -.->|Expose /metrics| Prom[Prometheus Server :19090]
-        Prom --> Graf[Grafana Observability Dashboards :13000]
-        Prom --> Alert[Alertmanager: Latency, Error, Drift]
-    end
-
-    subgraph DriftAndGovernance ["3. Drift Monitoring & Model Governance"]
-        DB -->|Batch 5,000 log scan| Evid[Evidently AI Engine]
-        Evid -->|PSI >= 0.25 Webhook Trigger| Airflow[Apache Airflow Orchestrator :8080]
-        Evid -->|Upload HTML Report| MinIO[(MinIO S3 Artifact Store :19040)]
-        MLflow[MLflow Model Registry :15040] -->|Deploy @champion| API
-    end
-
-    subgraph RetrainingLoop ["4. Continuous Closed-Loop Retraining DAG"]
-        Airflow --> Task1[Task 1: Ingest & Join Ground-Truth Labels]
-        Task1 --> Task2[Task 2: Data Quality & Schema Gate]
-        Task2 --> Task3[Task 3: Check Drift PSI & Trigger Retrain]
-        Task3 --> Task4[Task 4: Train challenger candidate]
-        Task4 --> Task5[Task 5: Model Validation Gate ROC-AUC >= 0.75]
-        Task5 --> Task6[Task 6: Promote @challenger & POST /reload-model]
-    end
+flowchart LR
+    Client["Applicant<br/>Web or mobile"] --> API["FastAPI<br/>online scoring"]
+    API --> Model["Active model<br/>in memory"]
+    API --> DB["PostgreSQL<br/>inference logs"]
+    API --> Prom["Prometheus<br/>service metrics"]
+    Prom --> Grafana["Grafana<br/>dashboards"]
+    DB --> Drift["Evidently<br/>drift monitoring"]
+    Drift --> Airflow["Airflow<br/>retraining DAG"]
+    Drift --> MinIO["MinIO<br/>reports and artifacts"]
+    Airflow --> Gate{"Candidate<br/>quality gate"}
+    Gate --> Registry["MLflow<br/>model registry"]
+    Registry --> Model
 ```
 
 ### 4.2 End-to-End Data Flow Through the System
@@ -271,16 +237,6 @@ flowchart TD
 ### 4.3 Machine Learning Pipeline Stages
 
 The platform lifecycle is structured across seven discrete pipeline stages:
-
-```mermaid
-flowchart LR
-    A[1. Ingestion] --> B[2. Validation Gate]
-    B --> C[3. Preprocessing]
-    C --> D[4. Model Training]
-    D --> E[5. Evaluation & Fair Lending]
-    E --> F[6. MLflow Registry]
-    F --> G[7. Canary Hot-Reload]
-```
 
 1. **Data Ingestion**: Loads historical baseline training records (20,000 observations) and dynamically joins 30-day delayed settlement feedback labels from core banking databases.
 2. **Data Validation Gate**: Enforces schema rules: no duplicate records, zero null values, strict range checks ($18 \le \text{AGE} \le 100$, $\text{LIMIT\_BAL} > 0$). Halts execution if schema violations exceed $0.01\%$.

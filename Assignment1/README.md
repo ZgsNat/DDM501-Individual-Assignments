@@ -19,10 +19,10 @@ uv run pytest -q test_system.py
 
 ## Build the report
 
-Install Google Chrome/Chromium or set `CHROME_BIN`, then build the named PDF:
+From the repository root, install the pinned local rendering assets with `npm ci`. Install Google Chrome/Chromium or set `CHROME_BIN`, then build the named PDF:
 
 ```bash
 uv run python generate_pdf.py --student-name "Full Name" --student-id "StudentID"
 ```
 
-The script replaces the report's student name/ID and creates the required filename. The scoring heuristic is not a trained or calibrated model, a FICO score, a legally validated adverse-action system, or an end-to-end latency benchmark. The tests validate only the local software behavior they exercise.
+The script replaces the report's student name/ID, renders LaTeX equations and Mermaid flowcharts, verifies the browser output, and creates the required filename. The scoring heuristic is not a trained or calibrated model, a FICO score, a legally validated adverse-action system, or an end-to-end latency benchmark. The tests validate only the local software behavior they exercise.

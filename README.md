@@ -14,6 +14,10 @@ Individual Assignment 1 and Individual Assignment 2 for **MSA36HN_DDM501**.
 
 Each assignment is independently reproducible from its folder with `uv sync` and `uv run pytest -q`. Assignment 2's experiment matrix can be regenerated with `uv run python experiments.py`.
 
+## Build the PDFs
+
+The PDF generators use local Chrome/Chromium plus the pinned MathJax and Mermaid JavaScript assets. From the repository root, run `npm ci` once, then invoke either assignment's `generate_pdf.py` as documented in its README. The build verifies that every equation and Mermaid diagram rendered before writing the PDF.
+
 ## Evidence boundary
 
 Assignment 1's system figures are design assumptions and proposed targets. Its Python engine is a hand-written heuristic—not a trained or calibrated model.

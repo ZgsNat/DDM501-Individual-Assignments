@@ -1,0 +1,9 @@
+{
+  "name": "ddm501-report-rendering",
+  "private": true,
+  "description": "Local assets for rendering mathematics and Mermaid diagrams in the DDM501 assignment PDFs",
+  "devDependencies": {
+    "mathjax-full": "3.2.2",
+    "mermaid": "12.1.0"
+  }
+}

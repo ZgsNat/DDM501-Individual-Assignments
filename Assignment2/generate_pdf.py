@@ -4,6 +4,7 @@ Uses markdown parsing + Headless Chrome rendering for publication-quality output
 """
 
 import argparse
+import html
 import os
 import re
 import shutil
@@ -150,8 +151,23 @@ pre {
     font-size: 8pt;
     padding: 12px;
     border-radius: 6px;
-    overflow-x: auto;
-    page-break-inside: avoid;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    break-inside: auto;
+}
+
+.mermaid {
+    margin: 16px auto;
+    text-align: center;
+    break-inside: auto;
+}
+
+.mermaid svg {
+    display: block;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 auto;
 }
 
 code {
@@ -167,6 +183,12 @@ pre code {
     background-color: transparent;
     color: inherit;
     padding: 0;
+}
+
+@media print {
+    .mermaid svg {
+        max-height: 235mm;
+    }
 }
 """
 
@@ -206,12 +228,12 @@ def generate_pdf(student_name: str, student_id: str) -> Path:
     md_text = source.read_text(encoding="utf-8")
     md_text = re.sub(
         r"(?m)^(\*\*Student Name:\*\* ).*$",
-        lambda match: match.group(1) + student_name,
+        lambda match: match.group(1) + student_name + "<br>",
         md_text,
     )
     md_text = re.sub(
         r"(?m)^(\*\*Student ID:\*\* ).*$",
-        lambda match: match.group(1) + student_id,
+        lambda match: match.group(1) + student_id + "<br>",
         md_text,
     )
     md_text = md_text.replace("[StudentID]_[Name]", f"{student_id}_{name_slug}")
@@ -222,12 +244,46 @@ def generate_pdf(student_name: str, student_id: str) -> Path:
         extensions=["tables", "fenced_code", "toc"],
         extension_configs={"toc": {"toc_depth": "2-3"}},
     )
+    html_content, diagram_count = re.subn(
+        r"<pre><code class=\"language-mermaid\">(.*?)</code></pre>",
+        lambda match: f'<div class="mermaid">{html.escape(html.unescape(match.group(1)))}</div>',
+        html_content,
+        flags=re.DOTALL,
+    )
+    if diagram_count == 0:
+        raise ValueError("The report contains no Mermaid diagrams to render.")
 
     full_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>DDM501 Individual Assignment 2</title>
+<script>
+window.MathJax = {{
+    tex: {{
+        inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+        displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+        processEscapes: true
+    }},
+    startup: {{ typeset: false }},
+    svg: {{ fontCache: 'global' }}
+}};
+window.addEventListener("DOMContentLoaded", async () => {{
+    try {{
+        mermaid.initialize({{ startOnLoad: false, securityLevel: "strict", theme: "neutral" }});
+        for (const diagram of document.querySelectorAll(".mermaid")) {{
+            await mermaid.run({{ nodes: [diagram] }});
+        }}
+        await MathJax.startup.promise;
+        await MathJax.typesetPromise();
+        document.documentElement.dataset.renderComplete = "true";
+    }} catch (error) {{
+        document.documentElement.dataset.renderError = error?.message || JSON.stringify(error);
+    }}
+}});
+</script>
+<script defer src="{(Path(__file__).resolve().parents[1] / 'node_modules/mermaid/dist/mermaid.min.js').as_uri()}"></script>
+<script defer src="{(Path(__file__).resolve().parents[1] / 'node_modules/mathjax-full/es5/tex-svg.js').as_uri()}"></script>
 <style>
 {CSS_STYLES}
 </style>
@@ -240,11 +296,38 @@ def generate_pdf(student_name: str, student_id: str) -> Path:
 
     Path(TARGET_HTML).write_text(full_html, encoding="utf-8")
     chrome = _chrome_binary()
+    browser_flags = [
+        chrome,
+        "--headless",
+        "--disable-gpu",
+        "--allow-file-access-from-files",
+        "--virtual-time-budget=15000",
+    ]
+    rendered_dom = subprocess.run(
+        [*browser_flags, "--dump-dom", Path(TARGET_HTML).resolve().as_uri()],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    if rendered_dom.returncode != 0:
+        raise RuntimeError(f"Chrome HTML rendering failed: {rendered_dom.stderr.strip()}")
+    if 'data-render-complete="true"' not in rendered_dom.stdout:
+        detail = re.search(r'data-render-error="([^"]*)"', rendered_dom.stdout)
+        raise RuntimeError(f"Math or diagram rendering failed: {detail.group(1) if detail else rendered_dom.stderr.strip()}")
+    if rendered_dom.stdout.count("<svg") < diagram_count or "<mjx-container" not in rendered_dom.stdout:
+        raise RuntimeError("Chrome did not produce all expected Mermaid diagrams and MathJax equations.")
+
+    static_html = re.sub(
+        r"<script\b[^>]*>.*?</script\s*>",
+        "",
+        rendered_dom.stdout,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    Path(TARGET_HTML).write_text(static_html, encoding="utf-8")
     result = subprocess.run(
         [
-            chrome,
-            "--headless",
-            "--disable-gpu",
+            *browser_flags,
             "--no-pdf-header-footer",
             f"--print-to-pdf={target_pdf.resolve()}",
             Path(TARGET_HTML).resolve().as_uri(),
@@ -252,6 +335,7 @@ def generate_pdf(student_name: str, student_id: str) -> Path:
         capture_output=True,
         text=True,
         check=False,
+        timeout=60,
     )
     if result.returncode != 0:
         raise RuntimeError(f"Chrome PDF generation failed: {result.stderr.strip()}")

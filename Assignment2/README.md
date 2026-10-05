@@ -29,10 +29,10 @@ The recorded benchmark is one stratified 80/20 holdout. All ten configurations f
 
 ## Build the named PDF report
 
-Install Google Chrome/Chromium or set `CHROME_BIN`, then run:
+From the repository root, install the pinned local rendering assets with `npm ci`. Install Google Chrome/Chromium or set `CHROME_BIN`, then run:
 
 ```bash
 uv run python generate_pdf.py --student-name "Full Name" --student-id "StudentID"
 ```
 
-The command fills the report's author fields and generates the assignment's required PDF filename. It fails explicitly if the browser is not found or PDF generation fails.
+The command fills the report's author fields, renders LaTeX equations and Mermaid flowcharts, verifies the browser output, and generates the assignment's required PDF filename. It fails explicitly if the browser is not found, an equation/diagram fails to render, or PDF generation fails.

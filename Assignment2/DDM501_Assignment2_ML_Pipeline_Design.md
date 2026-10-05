@@ -7,9 +7,9 @@
 **System Title:** Enterprise Real-Time Credit Default Risk Scoring & Monitoring Platform  
 **Target Domain:** Financial Technology (FinTech) / Digital Retail Banking  
 **Data used for code experiments:** reproducible synthetic data matching the UCI feature schema; no UCI observations are included or used  
-**Student Name:** Nguyễn Thái Thịnh  
-**Student ID:** 25MS13304  
-**Submission Date:** 5 October 2026  
+**Student Name:** Nguyễn Thái Thịnh<br>
+**Student ID:** 25MS13304<br>
+**Submission Date:** 5 October 2026<br>
 **Submission PDF:** `DDM501_Assignment2_25MS13304_Nguyen_Thai_Thinh.pdf`
 
 <div class="page-break"></div>
@@ -58,6 +58,7 @@ The Airflow file defines a small optional DAG around the real training and candi
 
 ### 1.1 Problem Statement Recap
 Assignment 1 proposed a hypothetical retail-credit system. Its volumes and service levels below are design targets, not measured operating baselines:
+
 * Sub-50ms inference latency SLA ($p95 < 50\text{ms}$).
 * Default discrimination power $ROC\text{-}AUC \ge 0.77$ and $F_1 \ge 0.52$.
 * $75\%$ reduction in manual underwriting caseload via three-tier routing (`PRIME`, `NEAR_PRIME`, `SUBPRIME`, `HIGH_RISK`).
@@ -81,51 +82,22 @@ The diagram is a target architecture, not a record of deployed services. The run
 The production ML pipeline is organized into seven decoupled, sequential stages with clear data contracts and validation checkpoints:
 
 ```mermaid
-flowchart TD
-    subgraph S1 ["Stage 1: Data Ingestion"]
-        DB[(PostgreSQL inference_logs)] -->|SQL Query| Ingest[Inference Logs Extractor]
-        Feedback[(Delayed Ground-Truth CSV)] -->|Key Join on request_id| Joiner[Sliding Window Join Engine]
-        Joiner -->|Raw Merged DataFrame: 20k rows| RawData[(Raw Joined Data)]
+flowchart LR
+    subgraph Data["Data preparation"]
+        direction TB
+        Ingest["1. Ingest"] --> Validate["2. Validate"] --> Preprocess["3. Preprocess"]
     end
-
-    subgraph S2 ["Stage 2: Data Validation & Schema Gate"]
-        RawData --> ValGate{Data Quality Gate}
-        ValGate -->|Nulls > 0% or Age < 18| Halt1[🚨 Halt Pipeline & Alert Slack]
-        ValGate -->|Pass: 100% Schema Valid| ValidData[(Validated DataFrame)]
+    subgraph Modeling["Model evaluation"]
+        direction TB
+        Train["4. Train"] --> Gate{"5. Offline quality gate"}
     end
-
-    subgraph S3 ["Stage 3: Preprocessing & Feature Engineering"]
-        ValidData --> Preproc[ColumnTransformer Pipeline]
-        Preproc --> Scale[StandardScaler: BILL_AMT, PAY_AMT]
-        Preproc --> OHE[OneHotEncoder: SEX, EDUCATION, MARRIAGE]
-        Preproc --> FeatEng[Ratio Engineering: Utilization & Pay-to-Bill]
-        FeatEng --> Matrix[(Transformed Feature Matrix: 30 Cols)]
+    subgraph Release["Optional production release (proposed)"]
+        direction TB
+        Registry["6. MLflow registry"] --> Serving["7. Serving and telemetry"]
     end
-
-    subgraph S4 ["Stage 4: Model Training & Hyperparameter Tuning"]
-        Matrix --> Split[Stratified 80/20 Train-Val Split]
-        Split --> CV[5-Fold Stratified K-Fold CV]
-        CV --> Trainer[Candidate Estimator Trainer]
-        Trainer --> CandModel[(Trained Model Candidate)]
-    end
-
-    subgraph S5 ["Stage 5: Model Evaluation & Fair Lending Audit"]
-        CandModel --> EvalGate{Model Validation Gate}
-        EvalGate -->|ROC-AUC < 0.75 or DIR outside 0.8-1.25| Halt2[🚨 Reject Model & Log MLflow]
-        EvalGate -->|Pass: ROC-AUC >= 0.77 & DIR Valid| ValidModel[(Approved Challenger Model)]
-    end
-
-    subgraph S6 ["Stage 6: MLflow Registry & Staging Gate"]
-        ValidModel --> RegLog[MLflow Logger: Params, Metrics, Artifacts]
-        RegLog --> MinIO[(MinIO S3 Bucket: Artifact Store)]
-        RegLog --> RegTag[Tag Version as @challenger]
-    end
-
-    subgraph S7 ["Stage 7: Production Serving & Telemetry"]
-        RegTag --> Webhook[POST /reload-model]
-        Webhook --> FastAPI[FastAPI Serving Microservice]
-        FastAPI --> LiveServe[Zero-Downtime Live Scoring & Prometheus Telemetry]
-    end
+    Preprocess --> Train
+    Gate -->|Rejected| Stop["Stop: no promotion"]
+    Gate -->|Eligible| Registry
 ```
 
 ### 2.2 Stage Specifications and Quality Gates
