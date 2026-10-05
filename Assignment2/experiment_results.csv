@@ -1,0 +1,11 @@
+Exp #,Model Architecture,Features,Class Weight,ROC-AUC,F1-Score,Precision,Recall,Brier,Latency p95 (ms),DIR,Status
+01,Logistic Regression (Baseline),Raw (23),None,0.7014,0.3759,0.3968,0.3571,0.1519,0.03,0.9367,Baseline
+02,Logistic Regression (Balanced),Raw (23),Balanced,0.6996,0.3765,0.2349,0.9476,0.2208,0.03,0.4981,Rejected by offline gate
+03,Random Forest (Shallow),Raw (23),None,0.6749,0.3743,0.4527,0.319,0.152,1.78,1.0163,Rejected by offline gate
+04,Random Forest (Deep Balanced),Raw (23),Balanced,0.679,0.3703,0.2322,0.9143,0.1917,4.14,0.5761,Rejected by offline gate
+05,Gradient Boosting (GBDT),Raw (23),None,0.6911,0.4205,0.4322,0.4095,0.15,0.06,1.0126,Rejected by offline gate
+06,Gradient Boosting (Deep),Raw (23),None,0.6801,0.416,0.4392,0.3952,0.1528,0.08,0.9759,Rejected by offline gate
+07,HistGradientBoosting,Raw (23),None,0.6888,0.4293,0.44,0.419,0.1506,3.41,0.9896,Rejected by offline gate
+08,Hist GBDT (Balanced),Raw (23),Balanced,0.6708,0.3811,0.258,0.7286,0.1911,4.04,0.8225,Rejected by offline gate
+09,HistGradientBoosting (tuned),Raw (23),Balanced,0.6805,0.3913,0.2675,0.7286,0.1858,5.38,0.7712,Rejected by offline gate
+10,Hist GBDT + Financial Ratios,Raw + Ratios,Balanced,0.6706,0.3904,0.2714,0.6952,0.1837,5.28,0.8086,Rejected by offline gate

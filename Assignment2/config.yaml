@@ -1,0 +1,28 @@
+environment: development
+
+model:
+  name: credit-risk-model
+  alias: champion
+  min_roc_auc_gate: 0.7500
+  target_roc_auc: 0.7700
+  review_threshold: 0.30
+  decline_threshold: 0.60
+  algorithm: HistGradientBoostingClassifier
+  random_state: 42
+
+data:
+  train_split: 0.80
+  sliding_window_size: 20000
+  random_seed: 42
+  null_tolerance: 0.00
+  train_data_path: null
+
+fairness:
+  protected_attribute: SEX
+  dir_min_threshold: 0.80
+  dir_max_threshold: 1.25
+
+storage:
+  mlflow_tracking_uri: "http://localhost:15040"
+  model_dir: "models"
+  artifact_bucket: null

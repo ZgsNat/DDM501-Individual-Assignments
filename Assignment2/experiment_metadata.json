@@ -1,0 +1,24 @@
+{
+  "generated_at_utc": "2026-10-05T09:36:45.416711+00:00",
+  "data_source": "synthetic generator",
+  "rows": 5000,
+  "train_rows": 4000,
+  "validation_rows": 1000,
+  "default_rate": 0.2104,
+  "default_count": 1052,
+  "seed": 42,
+  "validation_fraction": 0.2,
+  "classification_threshold": 0.3,
+  "minimum_roc_auc_gate": 0.75,
+  "dir_bounds": [
+    0.8,
+    1.25
+  ],
+  "latency_measurement": "p95 of 200 warmed-up single-row predict_proba calls; model-only, excluding preprocessing, API, database, and network",
+  "python_version": "3.14.7",
+  "scikit_learn_version": "1.9.1",
+  "numpy_version": "2.5.3",
+  "pandas_version": "3.0.6",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "cpu_count": 15
+}
